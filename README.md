@@ -13,7 +13,7 @@ This plugin makes use of token authentication against the API of AWX. To create 
 | --host   |  The FQDN of the AWX host.				| Yes	   |
 | --jobs   |  Which job ID's to check. If you want to check multiple jobs, then put the ID's comma-separated.				| Yes 	   |
 | --token  |  Token to authenticate against AWX 	| Yes	   |
-| --verify |  Whether to verify the HTTPS connection| No	   |
+| --verify |  Whether to verify the HTTPS connection (if any) | No	   |
 
 ## Exit states
 
