@@ -15,6 +15,10 @@ This plugin makes use of token authentication against the API of AWX. To create 
 | --token  |  Token to authenticate against AWX 	| Yes	   |
 | --verify |  Whether to verify the HTTPS connection| No	   |
 
+## Exit states
+
+The plugin will only go in `CRITICAL` state when the last run of a job resulted into a failure.
+
 ## Examples
 
 icinga2 `CheckCommand` definition:
