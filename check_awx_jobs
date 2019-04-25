@@ -46,7 +46,7 @@ def query(options, token, method="GET"):
             r = requests.get("{}/{}".format(host, options), headers=awxHeaders, verify=verify)
             return r.text
         except requests.exceptions.ConnectionError:
-            exit_critical("Could not connect to AWX on host {}!".format(
+            exit_unknown("Could not connect to AWX on host {}!".format(
                 host))
 
 
