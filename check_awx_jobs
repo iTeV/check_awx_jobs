@@ -1,0 +1,111 @@
+#!/usr/bin/python3
+# Script to monitor the status for given job ID's
+try:
+    import argparse
+    import requests
+    import json
+    import urllib3
+except ImportError as e:
+    print(e)
+    exit(1)
+
+# Suppress InsecureRequestWarnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+def exit_ok(msg):
+    """ Exits the script in OK (0) state """
+    print("OK - {}".format(msg))
+    exit(0)
+
+
+def exit_warning(msg):
+    """ Exits the script in WARNING state (1) """
+    print("WARNING - {}".format(msg))
+    exit(1)
+
+
+def exit_critical(msg):
+    """ Exits the script in CRITICAL state (2) """
+    print("CRITICAL - {}".format(msg))
+    exit(2)
+
+
+def exit_unknown(msg):
+    """ Exits the script in UNKNOWN state (3) """
+    print("UNKNOWN - {}".format(msg))
+    exit(3)
+
+
+def query(options, token, method="GET"):
+    """ Query the AWX API and return the data """
+    global host, verify
+    awxHeaders = {"Authorization": "Bearer {}".format(token)}
+    if method.upper() == "GET":
+        try:
+            r = requests.get("{}/{}".format(host, options), headers=awxHeaders, verify=verify)
+            return r.text
+        except requests.exceptions.ConnectionError:
+            exit_critical("Could not connect to AWX on host {}!".format(
+                host))
+
+
+def check_job(jobs):
+    """
+    Check the provided job(s) and exit either:
+     - CRITICAL, if the previous run of the job has a failed status;
+     - WARNING, if the provided job does not exist in AWX;
+     - OK, if all the jobs in AWX are executed succesfully.
+    """
+    global token
+    successfulJobs = []
+    failedJobs = []
+    for job in jobs.split(","):
+        data = json.loads(query("api/v2/job_templates/{}".format(job), token))
+        if 'detail' in data.keys() and data['detail'] == "Not found.":
+            exit_warning("Job with ID {} not found in AWX.".format(job))
+        else:
+            lastJobRun = json.loads(
+                    query(data['related']['last_job'][1:], token))
+            if lastJobRun['status'] == "successful":
+                successfulJobs.append(job)
+            elif lastJobRun['status'] == "failed":
+                failedJobs.append("{} ({})".format(
+                    job, lastJobRun['name']))
+
+    if len(failedJobs) > 0:
+        exit_critical("Following job(s) exited with a problem: {}".format(
+            ",".join(failedJobs)))
+    else:
+        exit_ok("All jobs executed without a problem.")
+
+
+def check_token(token):
+    """ Check the provided token and return True if the token is valid """
+    data = json.loads(query("api/v2/me/", token))
+    if len(data) != 1:
+        return True
+
+
+def parse_help():
+    """ Parse the arguments that can be used in this script """
+    parseHelp = argparse.ArgumentParser(description="icinga2 plugin to monitor AWX jobs.")
+    parseHelp.add_argument("--host", help="Target AWX host.", required=True)
+    parseHelp.add_argument("--jobs", help="Which job IDs to check.", required=True)
+    parseHelp.add_argument("--token", help="Token to authenticate against AWX", required=True)
+    parseHelp.add_argument("--verify", help="Whether the HTTPS connection (if any) should be verified.", default=False, type=bool)
+    args = parseHelp.parse_args()
+
+    global verify, host
+    host = args.host
+    verify = args.verify
+
+    if check_token(args.token):
+        token = args.token
+        check_job(args.jobs)
+    else:
+        exit_unknown("Provided token is not valid.")
+
+
+if __name__ == "__main__":
+    parse_help()
